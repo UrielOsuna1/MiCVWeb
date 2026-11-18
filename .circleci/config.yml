@@ -1,0 +1,58 @@
+
+version: 2.1
+
+jobs:
+  test-and-package:
+    docker:
+      - image: cimg/node:22.14
+
+    working_directory: ~/project
+
+    steps:
+      # 1. Descargar el repositorio
+      - checkout
+
+      # 2. Restaurar cache
+      - restore_cache:
+          keys:
+            - npm-v1-{{ checksum "package-lock.json" }}
+
+      # 3. Instalar dependencias
+      - run:
+          name: Instalar dependencias
+          command: npm ci
+
+      # 4. Guardar cache
+      - save_cache:
+          paths:
+            - ~/.npm
+          key: npm-v1-{{ checksum "package-lock.json" }}
+
+      # 5. Verificar sintaxis
+      - run:
+          name: Verificar codigo
+          command: npm run check
+
+      # 6. Ejecutar pruebas
+      - run:
+          name: Ejecutar pruebas automatizadas
+          command: npm test
+
+      # 7. Empaquetar la aplicacion
+      - run:
+          name: Generar paquete de entrega
+          command: |
+            tar -czf filacero-release.tar.gz \
+              server web db \
+              package.json package-lock.json \
+              README.md .env.example
+
+      # 8. Guardar el artefacto
+      - store_artifacts:
+          path: filacero-release.tar.gz
+          destination: filacero-release.tar.gz
+
+workflows:
+  entrega-continua-filacero:
+    jobs:
+      - test-and-package
